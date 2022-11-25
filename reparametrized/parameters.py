@@ -121,7 +121,7 @@ def estimate_parameters_nll(
 
         elif isinstance(parameters, Iterable):
             # extract multiple parameters and pass them as a list
-            parameters_value = [state_dict[parameters] for parameter in parameters]
+            parameters_value = [state_dict[parameter] for parameter in parameters]
 
         else:
             raise Exception(f"I don't how to handle parameters={parameters}!")

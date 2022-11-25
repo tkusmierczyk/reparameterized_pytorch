@@ -76,7 +76,7 @@ def sample_parameters(
     return samples, nlls
 
 
-def take_parameters_sample(parameters_samples: StateDict) -> Generator[StateDict]:
+def take_parameters_sample(parameters_samples: StateDict):
     """Yields state dictionaries {parameter_name: next(parameters_sample)}.
 
     Args:

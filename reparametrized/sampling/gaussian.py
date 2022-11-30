@@ -33,7 +33,7 @@ def create_factorized_gaussian_sampler(
         q = Normal(loc, softplus(unnormalized_scale) + epsilon_scale)
         sample = q.rsample(torch.Size([n_samples]))
 
-        # calc total NLL for all params (shape==n_samples)
+        # calc total NLL for all params (out shape==n_samples)
         data_dims = list(range(1, len(sample.shape)))
         nll = -q.log_prob(sample).sum(dim=data_dims)
         nll = nll.to(sample.device)

@@ -13,6 +13,7 @@ def create_factorized_gaussian_sampler(
     epsilon_scale=1e-8,
     loc_initalization=lambda parameter: parameter.clone().detach(),
     uscale_initialization=lambda parameter: torch.randn_like(parameter),
+    **ignored_params,
 ) -> Tuple[Callable, Dict[str, torch.Tensor], Dict[str, object]]:
     """Creates a function that samples from Normal(loc, softplus(unnormalized_scale)).
 
@@ -45,7 +46,9 @@ def create_factorized_gaussian_sampler(
 
 
 def create_gaussian_tril_sampler(
-    parameter: torch.Tensor, device=None
+    parameter: torch.Tensor,
+    device=None,
+    **ignored_params,
 ) -> Tuple[Callable, Dict[str, torch.Tensor], Dict[str, object]]:
     """Creates a function that samples from MultivariateNormal(loc, cov).
 

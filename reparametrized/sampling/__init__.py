@@ -2,3 +2,4 @@
 
 from .delta import *
 from .gaussian import *
+from .multiparameter import *

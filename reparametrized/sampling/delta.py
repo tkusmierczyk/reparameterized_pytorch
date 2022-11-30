@@ -6,6 +6,7 @@ def create_delta_distribution_sampler(
     parameter: torch.Tensor,
     device=None,
     loc_initalization=lambda parameter: parameter.clone().detach(),
+    **ignored_params,
 ) -> Tuple[Callable, Dict[str, torch.Tensor], Dict[str, object]]:
     """Creates a function that samples from delta distribution.
 

@@ -3,9 +3,7 @@ Learning with reparametrized gradients for native pytorch modules.
 
 ## Introduction
 Mathematical formulations of learning with samples from reparametrized distributions separate posteriors $q$ from structures of likelihoods (networks) $f$. For example, for ELBO
-$$
-\mathcal{L} = \mathbb{E}_q \left[ \log p(f(y,x|w)) + \log p(w) - \log q(w|\lambda) \right] \approx \frac{1}{S} \sum_{w \sim q(w|\lambda)} \left[ \log p(f(y,x|w)) + \log p(w) - \log q(w|\lambda) \right]
-$$
+$L = E_q ( \log p(f(y,x|w)) + \log p(w) - \log q(w|\lambda) ) \approx \frac{1}{S} \sum_{w \sim q(w|\lambda)} ( \log p(f(y,x|w)) + \log p(w) - \log q(w|\lambda) )$
 $f$ takes parameters (weights) $w$ as an argument but is not tied anyhow to the sampling distribution $q$.
 At the same time, all the available pytorch libraries (for example, [bayesian torch](https://github.com/IntelLabs/bayesian-torch)) work by replacing pytorch native layers with custom layers. As a consequence, it is impossible to sample jointly for multiple layers or pass additional information to the sampling code.
 

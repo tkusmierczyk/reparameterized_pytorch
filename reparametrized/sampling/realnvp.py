@@ -72,6 +72,7 @@ def build_realnvp(
     realnvp_m=128,
     realnvp_num_layers=4,
     rezero_trick=False,
+    **ignored_kwargs,
 ):
     d = output_dim
     m = realnvp_m

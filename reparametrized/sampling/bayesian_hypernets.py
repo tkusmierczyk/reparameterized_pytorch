@@ -30,6 +30,12 @@ def create_bayesian_hypernet_sampler(
     v_loc = parameter.clone().detach().requires_grad_(True).to(device)
     # TODO initialization of flows and v_loc
 
+    # print(f"g_shape={g_shape} v_shape={v_loc.shape}")
+
+    theta_dim_per_g = (
+        parameter.numel() / g_shape.numel()
+    )  # how many thetas are created from each g
+
     def sampler(n_samples=1):
         v = v_loc.expand(torch.Size([n_samples] + [-1 for _ in v_loc.shape]))
         assert v.shape == torch.Size([n_samples] + list(parameter.shape))
@@ -41,7 +47,7 @@ def create_bayesian_hypernet_sampler(
         ), f"{g.shape}!={n_samples},{g_shape}"
 
         sample = _weight_norm_our(v, g, dim=1)
-        nll = nll.to(sample.device)
+        nll = (nll * theta_dim_per_g).to(sample.device)
 
         if not only_flow_nll:
             u = _normalize_v(v, dim=1)

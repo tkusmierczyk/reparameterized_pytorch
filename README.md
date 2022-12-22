@@ -7,10 +7,14 @@ At the same time, all the available pytorch libraries (for example, [bayesian to
 
 We achieve full separation of sampling procedures from network structures by implementing [custom procedure](reparametrized/parameters.py) for loading state dictionary (pytorch's default *load_state_dict* loses gradients of samples) for an arbitrary network's parameters. 
 
+## Installation
+
+The library can be installed using:
+`pip install git+https://github.com/tkusmierczyk/reparametrized_pytorch.git#egg=reparametrized`
+
 ## Limitations
 
 For native pytorch modules it is impossible to pass at once multiple sampled parameter sets for a network. Hence, when we sampled more than one set, we need to loop over them using *take_parameters_sample*. In each iteration the *forward* operation is then repeated, which makes execution slower.
-
 
 ## Demos
 6. [Learn Normalizing Flow for Bayesian linear regression](notebooks/bayesian_linear_regression_bnn_wrapper.ipynb) (13 dimensions; [using BNN wrapper class](reparametrized/bnn_wrapper.py))

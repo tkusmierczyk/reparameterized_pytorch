@@ -1,3 +1,4 @@
+import setuptools
 from setuptools import setup
 
 from reparametrized import __version__
@@ -9,4 +10,5 @@ setup(
     author="Tomasz Kuśmierczyk",
     author_email="tomasz.kusmierczyk@gmail.com",
     py_modules=["reparametrized"],
+    packages=setuptools.find_packages(),
 )

@@ -46,7 +46,7 @@ class BayesianNeuralNetwork:
         filter: Callable = lambda parameter_name: True,
     ) -> None:
         """Register samplers for selected parameters (e.g. with 'bias' in name)."""
-        for parameter_name, parameter_value in self._model.named_parameters():
+        for parameter_name, parameter_value in self._module.named_parameters():
             if filter(parameter_name) and not self.is_parameter_already_handled(
                 parameter_name
             ):

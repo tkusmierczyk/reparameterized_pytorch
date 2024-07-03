@@ -30,7 +30,11 @@ def load_state_dict(
     """
     for name, m in module._modules.items():
         load_state_dict(
-            m, state_dict, path=f"{path}.{name}", prev_state_dict=prev_state_dict
+            m,
+            state_dict,
+            path=f"{path}.{name}",
+            prev_state_dict=prev_state_dict,
+            strict_shapes=strict_shapes,
         )
 
     for name in module._parameters.keys():

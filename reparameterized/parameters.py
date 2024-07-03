@@ -2,8 +2,8 @@
 import torch
 
 import warnings
-from typing import Iterable, Union, Tuple, Callable, Dict, Generator
-
+from typing import Iterable, Union, Tuple, Callable, Dict
+import logging
 
 StateDict = Dict[str, torch.Tensor]
 
@@ -13,25 +13,43 @@ Samplers = Union[Dict[ParamsKey, Callable], Iterable[Tuple[ParamsKey, Callable]]
 DensityEsimators = Samplers  # an alias to avoid repeating the same structure
 
 
-def load_state_dict(module, state_dict: StateDict, path=""):
+def load_state_dict(
+    module,
+    state_dict: StateDict,
+    path="",
+    prev_state_dict: StateDict = {},
+    strict_shapes: bool = True,
+):
     """Sets model params to samples from e.g. approximate posterior.
 
     Args:
         module: torch module instance
         state_dict: dictionary {parameter_name/path: sample_value (tensor)}
+        prev_state_dict: output dictionary containing previous values of the updated parameters
+        strict_shapes: allow reshaping new values to match the originals (number of elements must match)
     """
     for name, m in module._modules.items():
-        load_state_dict(m, state_dict, path=f"{path}.{name}")
+        load_state_dict(
+            m, state_dict, path=f"{path}.{name}", prev_state_dict=prev_state_dict
+        )
 
     for name in module._parameters.keys():
         sample_path = f"{path}.{name}"[1:]  # skip the leading dot
+
+        if sample_path not in state_dict:
+            logging.debug(f"[load_state_dict] No update for {sample_path}.")
+            continue
         new_value = state_dict[sample_path]
 
-        assert new_value.shape == module._parameters[name].shape, (
-            f"sample_path={sample_path} shape={new_value.shape} "
-            f"current shape={module._parameters[name].shape}"
+        shape, new_shape = module._parameters[name].shape, new_value.shape
+        assert (strict_shapes and new_shape == shape) or (
+            not strict_shapes and new_shape.numel() == shape.numel()
+        ), (f"sample_path={sample_path} shape={new_shape} " f"current shape={shape}")
+
+        prev_state_dict[sample_path] = module._parameters[name]  # save the old values
+        module._parameters[name] = (
+            new_value if new_shape == shape else new_value.reshape(shape)
         )
-        module._parameters[name] = new_value
 
     return module
 

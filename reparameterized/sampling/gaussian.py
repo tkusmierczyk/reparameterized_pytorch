@@ -1,5 +1,7 @@
 """Basic posterior models (sampling functions + variational parameters)."""
 
+import math
+
 import torch
 from torch.nn.functional import softplus
 from torch.distributions import Normal, MultivariateNormal
@@ -94,3 +96,64 @@ def create_gaussian_tril_sampler(
         "cov_tril": cov_tril,
     }
     return sample_gaussian_tril, variational_params, {}
+
+
+def cov_L_random_initalization(parameter, var_init=1 / 5e-4, cov_init_noise_scale=1e-3):
+    dim = parameter.numel()
+    cov_L = torch.tril(cov_init_noise_scale * torch.randn([dim, dim])) + torch.eye(
+        dim
+    ) * math.sqrt(var_init)
+    return cov_L
+
+
+def create_full_rank_gaussian_sampler(
+    parameter: torch.Tensor,
+    device: str = None,
+    loc_initalization: Callable = lambda parameter: parameter.clone().detach(),
+    cov_L_initalization: Callable = cov_L_random_initalization,
+    optimize_loc: bool = True,
+    optimize_cov: bool = True,
+    **ignored_params,
+) -> Tuple[Callable, Dict[str, torch.Tensor], Dict[str, object]]:
+    """Creates a function that samples from full-rank MultivariateNormal(loc, cov).
+
+    Returns:
+        sampling function: which takes n_samples and outputs tuple(sample, NLL)
+        dictionary {name: tensor} with variational parameters (loc, cov parameters)
+        dictionary with auxiliary objects (currently empty)
+    """
+
+    # Prepare variational parameters
+    loc = (
+        loc_initalization(parameter.flatten())
+        .requires_grad_(optimize_loc)
+        .to(device or parameter.device)
+    )
+
+    cov_L = (
+        cov_L_initalization(parameter)
+        .requires_grad_(optimize_cov)
+        .to(device or parameter.device)
+    )
+
+    def sample_gaussian(n_samples=1):
+        cov = cov_L @ cov_L.t()
+        cov = 0.5 * (cov.T + cov)
+        q = MultivariateNormal(loc=loc, covariance_matrix=cov)
+        sample = q.rsample(torch.Size([n_samples]))
+
+        # calc total NLL for all params (shape==n_samples)
+        nll = -q.log_prob(sample)
+        nll = nll.to(sample.device)
+
+        sample = sample.reshape(torch.Size([n_samples]) + parameter.shape)
+        return sample, nll
+
+    variational_params = {
+        "loc": loc,
+        "cov_L": cov_L,
+    }
+    variational_params = {
+        n: p for n, p in variational_params.items() if p.requires_grad
+    }  # exclude no-grad params
+    return sample_gaussian, variational_params, {}

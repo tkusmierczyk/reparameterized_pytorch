@@ -6,7 +6,7 @@ from typing import Callable, Iterable, Tuple
 
 
 def _multiparameter_sampler_unpack(sampler, parameter2shape):
-    """Splits flattened output of sampler into individual parameters according to parameter2shape."""
+    """Splits flattened output from sampler into individual parameters according to parameter2shape."""
 
     def wrapped_sampler(n_samples=1):
         joint_samples, joint_nlls = sampler(n_samples)
@@ -36,6 +36,7 @@ def create_multiparameter_sampler(
     named_parameters: Iterable[Tuple[str, torch.Tensor]],
     **sampler_create_func_args
 ):
+    """ Builds one joint sampler for multiple parameters. """
     named_parameters = list(named_parameters)
 
     # flatten to a single vector:

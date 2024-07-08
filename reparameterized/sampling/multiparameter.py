@@ -5,30 +5,29 @@ import torch
 from typing import Callable, Iterable, Tuple, Dict
 
 
-def _multiparameter_sampler_unpack(sampler, parameter2shape):
-    """Splits flattened output from sampler into individual parameters according to parameter2shape."""
+def separate_parameters(
+    joint_samples, named_parameters: Iterable[Tuple[str, torch.Tensor]]
+):
+    """Splits flattened output from sampler into individual parameters.
 
-    def wrapped_sampler(n_samples=1):
-        joint_samples, joint_nlls = sampler(n_samples)
+    Returns a list of samples ordered according to named_parameters.
+    """
+    named_parameters = list(named_parameters)
+    parameter2shape = [(n, p.shape) for n, p in named_parameters]
 
-        samples = []
-        start_ix = 0
-        for parameter_name, shape in parameter2shape:
-            npositions = shape.numel()
-            parameter_samples = joint_samples[
-                :, start_ix : (start_ix + npositions), ...
-            ]
-            parameter_samples = parameter_samples.reshape(
-                torch.Size([n_samples]) + shape
-            )
+    samples = []
+    start_ix = 0
+    n_samples = joint_samples.shape[0]
+    for parameter_name, shape in parameter2shape:
+        npositions = shape.numel()
+        parameter_samples = joint_samples[:, start_ix : (start_ix + npositions), ...]
+        parameter_samples = parameter_samples.reshape(torch.Size([n_samples]) + shape)
 
-            # samples[parameter_name] = parameter_samples   # return a dict
-            samples.append(parameter_samples)  # return an ordered list
+        # samples[parameter_name] = parameter_samples   # return a dict
+        samples.append(parameter_samples)  # return an ordered list
 
-            start_ix += npositions
-        return samples, joint_nlls
-
-    return wrapped_sampler
+        start_ix += npositions
+    return samples
 
 
 def create_multiparameter_sampler(
@@ -38,7 +37,7 @@ def create_multiparameter_sampler(
 ):
     """Builds one joint sampler for multiple parameters.
 
-    Builds a sampler producing unnamed samples ordered accoring to named_parameters.
+    Builds a sampler producing unnamed samples ordered according to named_parameters.
     NLL is calculated jointly for all the parameters.
     """
     named_parameters = list(named_parameters)
@@ -52,9 +51,12 @@ def create_multiparameter_sampler(
         **sampler_create_func_args
     )
 
-    parameter2shape = [(n, p.shape) for n, p in named_parameters]
-    sampler = _multiparameter_sampler_unpack(sampler, parameter2shape)
-    return sampler, variational_params, aux_objs
+    def _sampler_list_wrapper(n_samples=1):
+        joint_samples, joint_nlls = sampler(n_samples)
+        samples = separate_parameters(joint_samples, named_parameters)
+        return samples, joint_nlls
+
+    return _sampler_list_wrapper, variational_params, aux_objs
 
 
 def create_multiparameter_sampler_dict(

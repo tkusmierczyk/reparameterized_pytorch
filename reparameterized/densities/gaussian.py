@@ -3,9 +3,9 @@ import torch
 from torch.distributions import Normal
 
 
-def create_gaussian_nll(event_shape: torch.Size) -> Callable:
-    loc = torch.zeros(event_shape)
-    scale = torch.ones(event_shape)
+def create_gaussian_nll(event_shape: torch.Size, loc=0.0, scale=1.0) -> Callable:
+    loc = torch.zeros(event_shape) + loc
+    scale = torch.ones(event_shape) * scale
     p = Normal(loc, scale)
 
     def get_nll(parameter):

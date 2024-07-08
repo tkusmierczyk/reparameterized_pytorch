@@ -9,7 +9,7 @@ def _multiparameter_sampler_unpack(sampler, parameter2shape):
     """Splits flattened output from sampler into individual parameters according to parameter2shape."""
 
     def wrapped_sampler(n_samples=1):
-        joint_samples, joint_nll = sampler(n_samples)
+        joint_samples, joint_nlls = sampler(n_samples)
 
         samples = []
         start_ix = 0
@@ -26,7 +26,7 @@ def _multiparameter_sampler_unpack(sampler, parameter2shape):
             samples.append(parameter_samples)  # return an ordered list
 
             start_ix += npositions
-        return samples, joint_nll
+        return samples, joint_nlls
 
     return wrapped_sampler
 
@@ -75,7 +75,7 @@ def create_multiparameter_sampler_dict(
 
     def _sampler_dict_wrapper(*args, **kwargs):
         """Matches unnamed samples from sampler with their names."""
-        parameter_samples, joint_nll = sampler(*args, **kwargs)
-        return dict(zip(parameter_names, parameter_samples)), joint_nll
+        parameter_samples, joint_nlls = sampler(*args, **kwargs)
+        return dict(zip(parameter_names, parameter_samples)), joint_nlls
 
     return _sampler_dict_wrapper, variational_params, aux_objs

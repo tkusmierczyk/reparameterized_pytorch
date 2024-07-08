@@ -130,8 +130,16 @@ def is_parameter_handled(parameters2sampler: Samplers, parameter_name: str) -> b
 
 
 def estimate_parameters_nll(
-    parameters2nllfunc: DensityEsimators, state_dict: StateDict
+    parameters2nllfunc: DensityEsimators,
+    state_dict: StateDict,
+    reduce_over_params: bool = False,
 ) -> NLLs:
+    """Returns dictionary {parameter name: NLLs for samples from state_dict}.
+
+    If reduce_over_params is True,
+    returns NLLs for samples from state_dict
+    but totaled over all parameters.
+    """
     if hasattr(parameters2nllfunc, "items"):
         parameters2nllfunc = parameters2nllfunc.items()
 
@@ -150,4 +158,10 @@ def estimate_parameters_nll(
 
         parameters2nll[parameters] = nll_estimator(parameters_value)
 
-    return parameters2nll
+    if reduce_over_params:
+        # total over all parameters => (n_samples, )
+        nlls = list(parameters2nll.values())
+        return torch.stack(nlls).sum(0)
+    else:
+        # calc priors for separate params => {param_name: (n_samples, )}
+        return parameters2nll

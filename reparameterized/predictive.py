@@ -25,12 +25,12 @@ def sample_predictive(
     Args:
         input_x (torch.Tensor), model (torch.nn.Module): logits = model.forward(input_x)
         parameters_samples (StateDict): _description_
-        sampler (Callable, optional): Takes logits and outputs n_samples samples from predictive distribution. 
+        sampler (Callable, optional): Takes logits and outputs n_samples samples from predictive distribution.
             Default sampler = identity i.e. just returns logits with additional dimension but without any sampling.
         n_samples (int, optional): An argument passed to sampler. Defaults to 1.
         flatten_samples_dims (bool, optional): Whether to flatten output
             (i.e. remove additional dimension due to sampling with sampler). Defaults to True.
-        parameters_strict_shapes (bool, optional): If shapes in parameters_samples must match shapes in model. 
+        parameters_strict_shapes (bool, optional): If shapes in parameters_samples must match shapes in model.
             Defaults to True.
 
     Returns:
@@ -52,7 +52,9 @@ def sample_predictive(
         assert predictive_samples1.shape == torch.Size([n_samples] + list(logits.shape))
 
         predictive_samples.append(predictive_samples1)
-    model = load_state_dict(model, prev_state_dict)  # restore model to the original state
+    model = load_state_dict(
+        model, prev_state_dict
+    )  # restore model to the original state
     # stack and move samples of y to dim=0 and samples of theta to dim=1:
     predictive_samples = torch.stack(predictive_samples).transpose(0, 1)
 
@@ -67,18 +69,29 @@ def predictive_likelihoods(
     model: torch.nn.Module,
     parameters_samples: StateDict,
     likelihood_func: Callable,
+    parameters_strict_shapes: bool = True,
     **likelihood_func_kwargs,
 ) -> torch.Tensor:
     batch_dim = torch.Size([len(output_y)])
     logliks = []
-    for state_dict in take_parameters_sample(parameters_samples):
+    prev_state_dict = {}
+    for s, state_dict in enumerate(take_parameters_sample(parameters_samples)):
 
-        model = load_state_dict(model, state_dict)
+        model = load_state_dict(
+            model,
+            state_dict,
+            prev_state_dict=prev_state_dict if s == 0 else {},  # store original values
+            strict_shapes=parameters_strict_shapes,
+        )
+
         logits = model.forward(input_x)
 
         logliks1 = likelihood_func(logits, output_y, **likelihood_func_kwargs)
         assert logliks1.shape == batch_dim
 
         logliks.append(logliks1)
+    model = load_state_dict(
+        model, prev_state_dict
+    )  # restore model to the original state
     logliks = torch.stack(logliks)
     return logliks

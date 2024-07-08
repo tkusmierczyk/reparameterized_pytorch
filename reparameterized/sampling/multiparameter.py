@@ -5,12 +5,21 @@ import torch
 from typing import Callable, Iterable, Tuple, Dict
 
 
+def merge_parameters(parameter_samples: Iterable[torch.Tensor]):
+    """Flattens and stacks parameter (separated) samples.
+
+    Returns:
+        tensor of shape (n samples, total dimension of all parameters)
+    """
+    return torch.hstack([sample.flatten(start_dim=1) for sample in parameter_samples])
+
+
 def separate_parameters(
     joint_samples, named_parameters: Iterable[Tuple[str, torch.Tensor]]
 ):
-    """Splits flattened output from sampler into individual parameters.
+    """Splits flattened output from joint sampler into individual parameters.
 
-    Returns a list of samples ordered according to named_parameters.
+    Returns a list of samples ordered and reshaped according to named_parameters.
     """
     named_parameters = list(named_parameters)
     parameter2shape = [(n, p.shape) for n, p in named_parameters]
@@ -38,7 +47,7 @@ def create_multiparameter_sampler(
     """Builds one joint sampler for multiple parameters.
 
     Builds a sampler producing unnamed samples ordered according to named_parameters.
-    NLL is calculated jointly for all the parameters.
+    NLLs are calculated jointly for all the parameters.
     """
     named_parameters = list(named_parameters)
 
@@ -67,7 +76,7 @@ def create_multiparameter_sampler_dict(
     """Builds one joint sampler for multiple parameters.
 
     Builds a sampler producing dictionary with named samples: {name [str]: sample [tensor]}.
-    NLL is calculated jointly for all the parameters.
+    NLLs are calculated jointly for all the parameters.
     """
     named_parameters = list(named_parameters.items())
     parameter_names = [n for n, _ in named_parameters]  # extract parameter names

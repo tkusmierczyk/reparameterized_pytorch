@@ -87,7 +87,10 @@ def predictive_likelihoods(
         logits = model.forward(input_x)
 
         logliks1 = likelihood_func(logits, output_y, **likelihood_func_kwargs)
-        assert logliks1.shape == batch_dim
+        # the result must be either a total for the whole data or one number per row
+        assert (
+            logliks1.shape == torch.Size([]) or logliks1.shape == batch_dim
+        ), f"logliks1.shape={logliks1.shape} != {batch_dim}=batch_dim"
 
         logliks.append(logliks1)
     model = load_state_dict(

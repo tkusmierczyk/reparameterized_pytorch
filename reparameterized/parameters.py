@@ -13,6 +13,63 @@ Samplers = Union[Dict[ParamsKey, Callable], Iterable[Tuple[ParamsKey, Callable]]
 DensityEsimators = Samplers  # an alias to avoid repeating the same structure
 
 
+def _are_shapes_compatible(shape1, shape2):
+    """
+    Check if tensor1 and tensor2 agree on all trailing dimensions, but can have additional leading dimensions.
+
+    Returns:
+        bool: True if the tensors have matching dimensions.
+    """
+
+    # Reverse the shapes to compare from the last dimension backward
+    reversed_shape1 = reversed(shape1)
+    reversed_shape2 = reversed(shape2)
+
+    # Compare the shapes from the last dimension backward
+    for dim1, dim2 in zip(reversed_shape1, reversed_shape2):
+        if dim1 != dim2:
+            return False  # Not compatible if the dimensions differ
+
+    # If no conflicts were found, they are compatible
+    return True
+
+
+def _smart_reshape(tensor, desired_shape):
+    """
+    Reshape a tensor to match the desired shape. If the number of elements in the tensor is greater than
+    the number of elements in the desired shape, add an extra leading dimension.
+
+    Args:
+        tensor (Tensor): The input tensor to reshape.
+        desired_shape (tuple): The desired shape (can have fewer elements than the input tensor).
+
+    Returns:
+        Tensor: The reshaped tensor, possibly with an extra leading dimension if necessary.
+    """
+    # Calculate the number of elements in the tensor and the desired shape
+    tensor_num_elements = tensor.numel()
+    desired_num_elements = torch.prod(torch.tensor(desired_shape)).item()
+
+    if _are_shapes_compatible(tensor.shape1, desired_shape):
+        # If shapes already match, do nothing
+        return tensor
+
+    elif tensor_num_elements == desired_num_elements:
+        # If the number of elements match, reshape directly
+        return tensor.reshape(desired_shape)
+
+    elif tensor_num_elements > desired_num_elements:
+        # If the tensor has more elements, prepend a leading dimension
+        extra_dim = tensor_num_elements // desired_num_elements
+        new_shape = (extra_dim,) + desired_shape
+        return tensor.reshape(new_shape)
+
+    else:
+        raise ValueError(
+            "The tensor has fewer elements than the desired shape. Cannot reshape."
+        )
+
+
 def load_state_dict(
     module,
     state_dict: StateDict,
@@ -47,12 +104,12 @@ def load_state_dict(
 
         shape, new_shape = module._parameters[name].shape, new_value.shape
         assert (strict_shapes and new_shape == shape) or (
-            not strict_shapes and new_shape.numel() == shape.numel()
+            not strict_shapes and _are_shapes_compatible(new_shape, shape)
         ), (f"sample_path={sample_path} shape={new_shape} " f"current shape={shape}")
 
         prev_state_dict[sample_path] = module._parameters[name]  # save the old values
         module._parameters[name] = (
-            new_value if new_shape == shape else new_value.reshape(shape)
+            new_value if new_shape == shape else _smart_reshape(new_value, shape)
         )
 
     return module

@@ -104,7 +104,11 @@ def load_state_dict(
 
         shape, new_shape = module._parameters[name].shape, new_value.shape
         assert (strict_shapes and new_shape == shape) or (
-            not strict_shapes and _are_shapes_compatible(new_shape, shape)
+            not strict_shapes
+            and (
+                new_shape.numel() == shape.numel()
+                or _are_shapes_compatible(new_shape, shape)
+            )
         ), (f"sample_path={sample_path} shape={new_shape} " f"current shape={shape}")
 
         prev_state_dict[sample_path] = module._parameters[name]  # save the old values

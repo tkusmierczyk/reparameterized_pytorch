@@ -50,7 +50,7 @@ def _smart_reshape(tensor, desired_shape):
     tensor_num_elements = tensor.numel()
     desired_num_elements = torch.prod(torch.tensor(desired_shape)).item()
 
-    if _are_shapes_compatible(tensor.shape1, desired_shape):
+    if _are_shapes_compatible(tensor.shape, desired_shape):
         # If shapes already match, do nothing
         return tensor
 

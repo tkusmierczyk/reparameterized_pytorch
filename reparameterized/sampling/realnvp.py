@@ -71,7 +71,8 @@ def build_realnvp(
     output_dim,
     realnvp_m=128,
     realnvp_num_layers=4,
-    rezero_trick=False,
+    realnvp_rezero_trick=False,
+    realnvp_activation=LeakyReLU(),
     **ignored_kwargs,
 ):
     d = output_dim
@@ -80,18 +81,18 @@ def build_realnvp(
     flow_prior = MultivariateNormal(torch.zeros(d), torch.eye(d))
     net_s = lambda: Sequential(
         Linear(d - d // 2, m),
-        LeakyReLU(),
+        realnvp_activation,
         Linear(m, m),
-        LeakyReLU(),
+        realnvp_activation,
         Linear(m, d // 2),
         Tanh(),
     )
     net_t = lambda: Sequential(
         Linear(d - d // 2, m),
-        LeakyReLU(),
+        realnvp_activation,
         Linear(m, m),
-        LeakyReLU(),
+        realnvp_activation,
         Linear(m, d // 2),
     )
-    realnvp = RealNVP(net_s, net_t, realnvp_num_layers, flow_prior, rezero_trick)
+    realnvp = RealNVP(net_s, net_t, realnvp_num_layers, flow_prior, rezero_trick=realnvp_rezero_trick)
     return realnvp

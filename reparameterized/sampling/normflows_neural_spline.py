@@ -10,6 +10,7 @@ def build_spline_flow(
     spline_flow_hidden_units=128,
     spline_flow_hidden_layers=2,
     spline_flow_layer_cls=nf.flows.AutoregressiveRationalQuadraticSpline,
+    spline_trainable_prior=False,
     parameters_shapes=None,
     **layer_args,
 ):
@@ -46,7 +47,7 @@ def build_spline_flow(
         flows += [nf.flows.LULinearPermute(latent_size)]
 
     # Set base distribuiton
-    q0 = nf.distributions.DiagGaussian(latent_size, trainable=False)
+    q0 = nf.distributions.DiagGaussian(latent_size, trainable=spline_trainable_prior)
     logging.debug(f"[build_spline_flow] q0={q0}")
 
     # Construct flow model

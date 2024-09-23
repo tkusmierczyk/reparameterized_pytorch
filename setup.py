@@ -11,4 +11,8 @@ setup(
     author_email="tomasz.kusmierczyk@gmail.com",
     py_modules=["reparameterized"],
     packages=setuptools.find_packages(),
+    install_requires=[
+        "torch",
+        "normflows",
+    ],
 )

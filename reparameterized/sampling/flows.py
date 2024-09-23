@@ -2,13 +2,14 @@
 from typing import Callable
 from .realnvp import build_realnvp
 import torch
+import logging
 
 
 def create_flow_sampler(
     parameter: torch.Tensor,
     device=None,
     build_flow_func: Callable = build_realnvp,
-    **build_flow_kwargs
+    **build_flow_kwargs,
 ):
     """Creates a function that samples from a normalizing flow.
 
@@ -24,6 +25,10 @@ def create_flow_sampler(
          - dictionary {name: tensor} with variational parameters (flow parameters)
          - dictionary with auxiliary objects: {"flow": flow object}
     """
+    logging.debug(
+        f"[create_flow_sampler] parameter={parameter.shape} build_flow_func={build_flow_func} "
+        f"build_flow_kwargs={build_flow_kwargs}"
+    )
     device = device or parameter.device
     flow = build_flow_func(output_dim=parameter.numel(), **build_flow_kwargs).to(device)
 

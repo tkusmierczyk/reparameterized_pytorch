@@ -49,14 +49,14 @@ def create_multiparameter_sampler(
 
     Builds a sampler producing unnamed samples ordered according to named_parameters.
     NLLs are calculated jointly for all the parameters.
-    
+
     Sample use:
         sampler, variational_params, aux_objs = multiparameter.create_multiparameter_sampler_dict(
             create_flow_sampler,  # creates a flow for all parameters considered jointly
-            model.named_parameters(),  # list of model parameters 
+            model.named_parameters(),  # list of model parameters
             build_flow_func = neural_spline_flow.build_spline_flow,  # flow type to be built
             spline_flow_hidden_units=16,  # some additional parameters to be passed to the building function
-        )    
+        )
     """
     named_parameters = list(named_parameters)
 
@@ -75,6 +75,9 @@ def create_multiparameter_sampler(
 
     def _sampler_list_wrapper(n_samples=1):
         joint_samples, joint_nlls = sampler(n_samples)
+        assert (
+            joint_samples.shape[0] == n_samples
+        ), f"sampler={sampler} returned wrong no of samples"
         samples = separate_parameters(joint_samples, named_parameters)
         return samples, joint_nlls
 
@@ -86,7 +89,7 @@ def create_multiparameter_sampler_dict(
     named_parameters: Dict[str, torch.Tensor],
     **sampler_create_func_args,
 ):
-    """Builds one joint sampler for multiple parameters.
+    """Builds one joint sampler for multiple parameters (wrapper for create_multiparameter_sampler).
 
     Builds a sampler producing dictionary with named samples: {name [str]: sample [tensor]}.
     NLLs are calculated jointly for all the parameters.
@@ -94,7 +97,7 @@ def create_multiparameter_sampler_dict(
     Sample use:
         sampler, variational_params, aux_objs = multiparameter.create_multiparameter_sampler_dict(
             create_flow_sampler,  # creates a flow for all parameters considered jointly
-            dict(model.named_parameters()),  # model parameters 
+            dict(model.named_parameters()),  # model parameters
             build_flow_func = neural_spline_flow.build_spline_flow,  # flow type to be built
             spline_flow_hidden_units=16,  # some additional parameters to be passed to the building function
         )

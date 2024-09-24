@@ -172,7 +172,6 @@ class WeightsInitializer:
 def train_nfm(
     model,
     target,
-    mask=None,
     max_iter=10000,
     num_samples=10,
     lr=5e-4,

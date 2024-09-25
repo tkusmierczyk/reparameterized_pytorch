@@ -3,22 +3,18 @@ import logging
 import torch
 from .normflows_common import (
     NormFlowWrapper,
-    WeightsInitializer,
     train_nfm,
-    ZerosSampler,
 )
 
 
 # Define flows
-def build_realnvp(
+def build_realnvp_flow(
     output_dim,
     realnvp_flow_K=16,
     realnvp_init_zeros=True,
     realnvp_trainable_prior=True,
     parameters_shapes=None,
-    pretrain_flow=False,
-    pretrain_flow_1D_parameters="zeros",  # biases
-    pretrain_flow_2D_parameters="zeros",  # weights
+    pretrain_flow_target=None,
 ):
     logging.debug(
         f"[build_realnvp] output_dim={output_dim} " f"realnvp_flow_K={realnvp_flow_K} "
@@ -55,25 +51,8 @@ def build_realnvp(
     # Force building a flow with batchSize>1, so layers with the right shapes are built
     nfm.sample(2)
 
-    if pretrain_flow:
+    if pretrain_flow_target:
         # Initialize flow to produce parameter samples from some default distributions
-        if (
-            pretrain_flow_1D_parameters == "zeros"
-            and pretrain_flow_2D_parameters == "zeros"
-        ):
-            target = ZerosSampler(output_dim)
-
-        else:
-            if parameters_shapes is None:
-                raise ValueError(
-                    "parameters_shapes must be provided if init_flow is True!"
-                )
-            target = WeightsInitializer(
-                parameters_shapes,
-                weight_init=pretrain_flow_2D_parameters,
-                bias_init=pretrain_flow_1D_parameters,
-            )
-
-        train_nfm(nfm, target)
+        train_nfm(nfm, pretrain_flow_target)
 
     return nfm

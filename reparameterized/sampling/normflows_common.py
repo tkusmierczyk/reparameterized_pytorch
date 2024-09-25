@@ -17,16 +17,18 @@ class NormFlowWrapper(nf.NormalizingFlow):
 
 
 class ZerosSampler:
+    """ Generates zero-initializations for NFs (through sample())). """
+
     def __init__(self, dim) -> None:
         self.dim = dim
 
-    def sample(self, num_samples=1):
-        return torch.zeros(num_samples, self.dim)
+    def sample(self, n_samples=1):
+        return torch.zeros(n_samples, self.dim)
 
 
-class WeightsInitializer:
+class WeightsAndBiasesSampler:
     """
-    A class for generating initializations for model weights and biases.
+    Generates initializations for NFs modeling distributions for weights and biases.
 
     This class takes a list of tensor shapes and generates initializations
     for weights and biases according to selected initialization algorithms.
@@ -173,14 +175,14 @@ def train_nfm(
     model,
     target,
     max_iter=10000,
-    num_samples=10,
+    n_samples=10,
     lr=5e-4,
     weight_decay=1e-5,
-    early_stopping_n_iters=30,
+    early_stopping_n_iters=100,
 ):
     # Train model
 
-    logging.info(f"[train_nfm] Training NF to match = {target}")
+    logging.info(f"[train_nfm] Training NF to match target distribution = {target}")
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
     best_loss, best_it = float("inf"), -early_stopping_n_iters
@@ -188,7 +190,7 @@ def train_nfm(
         optimizer.zero_grad()
 
         # Get training samples
-        x = target.sample(num_samples)
+        x = target.sample(n_samples)
 
         # Compute loss
         loss = model.forward_kld(x)

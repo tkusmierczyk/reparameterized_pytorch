@@ -6,6 +6,14 @@ from typing import Callable, Iterable, Tuple, Dict
 import logging
 
 
+def extract_parameters_shapes(named_parameters):
+    return [p.shape for _, p in named_parameters]
+
+
+def get_parameters_total_n_elements(named_parameters):
+    return sum(p.numel() for _, p in named_parameters)
+
+
 def merge_parameters(parameter_samples: Iterable[torch.Tensor]):
     """Flattens and stacks parameter (separated) samples.
 
@@ -61,7 +69,7 @@ def create_multiparameter_sampler(
     named_parameters = list(named_parameters)
 
     # flatten to a single vector:
-    parameters_shapes = [p.shape for _, p in named_parameters]
+    parameters_shapes = extract_parameters_shapes(named_parameters)
     parameters_jointly = torch.concat([p.flatten() for _, p in named_parameters])
     logging.debug(
         f"[create_multiparameter_sampler] parameters_shapes={parameters_shapes} "

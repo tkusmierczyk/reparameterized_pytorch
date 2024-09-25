@@ -66,18 +66,6 @@ def main_parameterized(
 
     # ## Load and preprocess data.
 
-    # In[13]:
-
-
-    # !rm *.csv
-    # !mkdir data/
-    # !wget https://raw.githubusercontent.com/AaltoML/stationary-activations/main/data/datapoints.csv
-    # !mv datapoints.csv data/
-    # !wget https://raw.githubusercontent.com/AaltoML/stationary-activations/main/data/classes.csv
-    # !mv classes.csv data/
-
-
-    # In[14]:
 
 
     # Download data from .csv files

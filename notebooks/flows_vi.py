@@ -482,7 +482,7 @@ def main_parameterized(
             residual_trainable_prior=False,    
             pretrain_flow_target=pretrain_flow_target,
             )
-        n_posterior_samples = 20
+        n_posterior_samples = min(20, n_posterior_samples_total)
         
     elif nf_model==21:
         sampler, variational_params, aux_objs = sampling.create_multiparameter_sampler_dict(
@@ -495,7 +495,7 @@ def main_parameterized(
             residual_trainable_prior=False,    
             pretrain_flow_target=pretrain_flow_target,
             )
-        n_posterior_samples = 20    
+        n_posterior_samples = min(20, n_posterior_samples_total)    
 
     elif nf_model==3:
         sampler, variational_params, aux_objs = sampling.create_multiparameter_sampler_dict(

@@ -9,9 +9,11 @@ class RealNVP(nn.Module):
     https://jmtomczak.github.io/blog/3/3_flows.html
     """
 
-    def __init__(self, net_s, net_t, num_layers, prior, rezero_trick=False):
+    def __init__(self, net_s, net_t, num_layers, dim, rezero_trick=False):
         super().__init__()
-        self.prior = prior
+        self.register_buffer("prior_loc", torch.zeros(dim))
+        self.register_buffer("prior_cov", torch.eye(dim))
+        
         self.t = nn.ModuleList([net_t() for _ in range(num_layers)])
         self.s = nn.ModuleList([net_s() for _ in range(num_layers)])
         self.num_flows = num_layers
@@ -25,6 +27,10 @@ class RealNVP(nn.Module):
             if rezero_trick
             else torch.ones((len(self.t)))
         )
+        
+    @property
+    def prior(self):
+        return MultivariateNormal(self.prior_loc, self.prior_cov)
 
     def coupling(self, x, index, forward=True):
         (xa, xb) = torch.chunk(x, 2, 1)
@@ -78,7 +84,6 @@ def build_realnvp(
     d = output_dim
     m = realnvp_m
 
-    flow_prior = MultivariateNormal(torch.zeros(d), torch.eye(d))
     net_s = lambda: Sequential(
         Linear(d - d // 2, m),
         realnvp_activation,
@@ -94,5 +99,6 @@ def build_realnvp(
         realnvp_activation,
         Linear(m, d // 2),
     )
-    realnvp = RealNVP(net_s, net_t, realnvp_num_layers, flow_prior, rezero_trick=realnvp_rezero_trick)
+    realnvp = RealNVP(net_s, net_t, realnvp_num_layers, d, rezero_trick=realnvp_rezero_trick)
+    
     return realnvp

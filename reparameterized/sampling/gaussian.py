@@ -24,13 +24,13 @@ def create_factorized_gaussian_sampler(
         dictionary {name: tensor} with variational parameters (loc and unnormalized_scale)
         dictionary with auxiliary objects
     """
-    loc = loc_initalization(parameter)
-    loc = loc.requires_grad_(True).to(device or parameter.device)
+    device = device or parameter.device
 
+    loc = loc_initalization(parameter)
     unnormalized_scale = uscale_initialization(parameter)
-    unnormalized_scale = unnormalized_scale.requires_grad_(True).to(
-        device or parameter.device
-    )
+
+    loc = loc.to(device).requires_grad_(True)
+    unnormalized_scale = unnormalized_scale.to(device).requires_grad_(True)
 
     def sample_factorized_gaussian(n_samples=1):
         q = Normal(loc, softplus(unnormalized_scale) + epsilon_scale)
@@ -50,6 +50,16 @@ def create_factorized_gaussian_sampler(
 def create_gaussian_tril_sampler(
     parameter: torch.Tensor,
     device=None,
+    loc_initialization: Callable = lambda parameter: parameter.flatten()
+    .clone()
+    .detach(),
+    unnormalized_diag_initialization: Callable = lambda parameter: torch.randn_like(
+        parameter.flatten()
+    ),
+    cov_tril_initialization: Callable = lambda parameter: 0.01
+    * torch.randn(
+        torch.Size([parameter.flatten().shape[0], parameter.flatten().shape[0]])
+    ),
     **ignored_params,
 ) -> Tuple[Callable, Dict[str, torch.Tensor], Dict[str, object]]:
     """Creates a function that samples from MultivariateNormal(loc, cov).
@@ -60,21 +70,15 @@ def create_gaussian_tril_sampler(
         dictionary {name: tensor} with variational parameters (loc, cov parameters)
         dictionary with auxiliary objects (currently empty)
     """
-    loc = (
-        parameter.flatten()
-        .clone()
-        .detach()
-        .requires_grad_(True)
-        .to(device or parameter.device)
-    )
-    unnormalized_diag = (
-        torch.randn_like(loc).requires_grad_(True).to(device or parameter.device)
-    )
-    cov_tril = (
-        torch.randn(torch.Size([loc.shape[0], loc.shape[0]]))
-        .requires_grad_(True)
-        .to(device or parameter.device)
-    )
+    device = device or parameter.device
+
+    loc = loc_initialization(parameter)
+    unnormalized_diag = unnormalized_diag_initialization(parameter)
+    cov_tril = cov_tril_initialization(parameter)
+
+    loc = loc.to(device).requires_grad_(True)
+    unnormalized_diag = unnormalized_diag.to(device).requires_grad_(True)
+    cov_tril = cov_tril.to(device).requires_grad_(True)
 
     def sample_gaussian_tril(n_samples=1):
         cov = torch.tril(cov_tril, diagonal=-1) + torch.diag(
@@ -122,19 +126,14 @@ def create_full_rank_gaussian_sampler(
         dictionary {name: tensor} with variational parameters (loc, cov parameters)
         dictionary with auxiliary objects (currently empty)
     """
+    device = device or parameter.device
 
     # Prepare variational parameters
-    loc = (
-        loc_initalization(parameter.flatten())
-        .requires_grad_(optimize_loc)
-        .to(device or parameter.device)
-    )
+    loc = loc_initalization(parameter.flatten())
+    cov_L = cov_L_initalization(parameter)
 
-    cov_L = (
-        cov_L_initalization(parameter)
-        .requires_grad_(optimize_cov)
-        .to(device or parameter.device)
-    )
+    loc = loc.to(device).requires_grad_(optimize_cov)
+    cov_L = cov_L.to(device).requires_grad_(optimize_cov)
 
     def sample_gaussian(n_samples=1):
         cov = cov_L @ cov_L.t()

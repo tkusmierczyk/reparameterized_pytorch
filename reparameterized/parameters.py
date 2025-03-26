@@ -179,6 +179,22 @@ def take_parameters_sample(parameters_samples: StateDict):
         yield {p: s[sample_no] for p, s in parameters_samples.items()}
 
 
+def merge_parameters_samples(parameters_samples_list: Iterable[StateDict]) -> StateDict:
+    """Merges list of dictionaries {parameter_name: samples} into one dictionary with concatenated samples."""
+    merged = {}
+    for parameters_samples in parameters_samples_list:
+        for parameter_name, samples in parameters_samples.items():
+            if parameter_name not in merged:
+                merged[parameter_name] = [samples]
+            else:
+                merged[parameter_name].append(samples)
+
+    for parameter_name, samples in merged.items():
+        merged[parameter_name] = torch.concat(samples, dim=0)
+
+    return merged
+
+
 def is_parameter_handled(parameters2sampler: Samplers, parameter_name: str) -> bool:
     if hasattr(parameters2sampler, "items"):
         parameters2sampler = parameters2sampler.items()

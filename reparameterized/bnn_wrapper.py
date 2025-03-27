@@ -1,10 +1,12 @@
 """Wrapping """
+
 import logging
 
 import torch
 from typing import Callable, Dict, Optional, Tuple
 
 from .parameters import is_parameter_handled, sample_parameters, estimate_parameters_nll
+from .parameters import take_parameters_sample, load_state_dict
 from .parameters import StateDict, NLLs, ParamsKey
 from .predictive import sample_predictive, predictive_likelihoods
 
@@ -143,3 +145,57 @@ class BayesianNeuralNetwork:
             self.predictive_distribution_log_lik,
             **predictive_likelihoods_kwargs,
         )
+
+
+def elbo_mc(
+    network,
+    minibatch_x,
+    minibatch_y,
+    log_priors,
+    log_likelihood,
+    sampler,
+    n_posterior_samples=117,
+    full2minibatch_ratio=1.0,
+    **sampler_kwargs,
+):
+    """Computes the Monte-Carlo estimate of the Evidence Lower Bound (ELBO) for a Bayesian Neural Network (BNN).
+
+    Args:
+        network (torch.nn.Module): The Neural Network model.
+        minibatch_x (torch.Tensor): Input data tensor.
+        minibatch_y (torch.Tensor): Target data tensor.
+        log_priors (StateDict): Function to compute the log prior probabilities
+            given a sample of parameters.
+        log_likelihood (Callable): Function to compute the log likelihood
+            given the model's predictions (=logits) and the target data.
+        sampler: Function to sample from the posterior distribution.
+            Returns a list of parameter samples and their corresponding negative log likelihoods.
+        n_posterior_samples (int, optional): Number of posterior samples to draw. Defaults to 111.
+        full2minibatch_ratio (float, optional): Ratio of the full dataset size to the minibatch size. Used to scale
+            the log likelihood. Defaults to 1.0.
+    """
+    samples, q_nlls = sampler(n_samples=n_posterior_samples, **sampler_kwargs)
+    assert not q_nlls.isnan().any(), f"Failed sampling! NLLs={q_nlls}"
+
+    p_nlls = [-log_priors(s) for s in take_parameters_sample(samples)]
+    p_nlls = torch.stack(p_nlls)
+    assert p_nlls.shape[0] == n_posterior_samples
+
+    assert p_nlls.shape == q_nlls.shape
+    KLD = p_nlls - q_nlls
+    KLD = KLD.sum() / n_posterior_samples  # average over n_posterior_samples
+
+    log_lik = 0.0
+    for s in take_parameters_sample(samples):
+        load_state_dict(network, s)
+
+        logits = network(minibatch_x)
+        ll = log_likelihood(logits, minibatch_y)
+        assert ll.shape == torch.Size([len(minibatch_x)])
+
+        ll = ll.sum() * full2minibatch_ratio  # scale up to full data size
+
+        log_lik += ll
+    log_lik /= n_posterior_samples  # average over n_posterior_samples
+
+    return {"ll": log_lik, "kl": KLD, "samples": samples, "nll": q_nlls}

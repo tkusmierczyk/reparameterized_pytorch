@@ -1,4 +1,5 @@
 """Code for sampling parameters and loading them for native pytorch models."""
+
 import torch
 
 import warnings
@@ -120,7 +121,7 @@ def load_state_dict(
 
 
 def sample_parameters(
-    parameters2sampler: Samplers, n_samples: int = 1
+    parameters2sampler: Samplers, n_samples: int = 1, **kwargs
 ) -> Tuple[StateDict, NLLs]:
     """Samples model parameters using predefined samplers.
 
@@ -135,7 +136,7 @@ def sample_parameters(
 
     samples, nlls = {}, {}
     for parameters, sampler in parameters2sampler:
-        parameters_samples, parameters_nlls = sampler(n_samples)
+        parameters_samples, parameters_nlls = sampler(n_samples, **kwargs)
 
         nlls[parameters] = parameters_nlls
 
@@ -157,6 +158,19 @@ def sample_parameters(
             )
 
     return samples, nlls
+
+
+def parameter_samplers_to_joint_sampler(parameters2sampler: Samplers):
+    """Wraps multiple samplers {parameter name/list of parameter names: sampling function} into one."""
+
+    def single_sampler(n_samples, **kwargs):
+        samples, parameter2nlls = sample_parameters(
+            parameters2sampler, n_samples, **kwargs
+        )  # sample for each parameter independently
+        nlls = torch.stack(list(parameter2nlls.values()), dim=0).sum(dim=0)  # sum NLLs from all parameters
+        return samples, nlls
+
+    return single_sampler
 
 
 def take_parameters_sample(parameters_samples: StateDict):

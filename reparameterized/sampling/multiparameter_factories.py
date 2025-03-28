@@ -43,8 +43,19 @@ from .realnvp import build_realnvp
 
 def create_joint_sampler(parameters: Dict[str, torch.Tensor], architecture: str):
     """Create a joint sampler for multiple parameters."""
-
-    if "rnvp" in architecture:
+    
+    if "svd" in architecture and "rnvp" in architecture:
+        sampler, variational_params, aux_objs = create_multiparameter_svd_sampler(
+            create_flow_sampler,
+            parameters,
+            svd_residuals=("residuals" in architecture),
+            build_flow_func=build_realnvp,
+            realnvp_rezero_trick=("rezero" in architecture),
+            realnvp_num_layers=(8 if "small" in architecture else 32),
+            realnvp_m=(128 if "small" in architecture else 6 * 128),
+        )
+        
+    elif "rnvp" in architecture:
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
             create_flow_sampler,
             parameters,
@@ -113,6 +124,7 @@ def create_parameter_sampler(parameter, architecture):
         sampler, variational_params, aux_objs = create_svd_sampler(
             parameter,
             create_flow_sampler,
+            svd_residuals=("residuals" in architecture),
             build_flow_func=build_realnvp,
             realnvp_rezero_trick=("rezero" in architecture),
             realnvp_num_layers=(8 if "small" in architecture else 32),
@@ -132,6 +144,7 @@ def create_parameter_sampler(parameter, architecture):
         sampler, variational_params, aux_objs = create_svd_sampler(
             parameter,
             create_factorized_gaussian_sampler,
+            svd_residuals=("residuals" in architecture),
             loc_initalization=lambda parameter_init_value: torch.zeros_like(
                 parameter_init_value
             ),
@@ -196,6 +209,7 @@ def create_independent_samplers(parameters: Dict[str, torch.Tensor], architectur
         sampler1, variational_params1, aux_objs1 = create_parameter_sampler(
             parameter, architecture
         )
+        aux_objs1 = {name+"."+k: v for k, v in aux_objs1.items()}
 
         parameter2sampler[name] = sampler1
         for k, v in variational_params1.items():

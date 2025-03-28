@@ -17,6 +17,7 @@ The library can be installed using:
 For native pytorch modules it is impossible to pass at once multiple sampled parameter sets for a network. Hence, when we sampled more than one set, we need to loop over them using *take_parameters_sample*. In each iteration the *forward* operation is then repeated, which makes execution slower.
 
 ## Demos
+8. [Learn (last-layer) BNN on MNIST](notebooks/bnn_mnist.ipynb) (for various posteriors)
 7. [Learn Normalizing Flows for BNN with a single wide hidden layer and Matern52-like activation](notebooks/flows_vi.ipynb) (compared against MCMC baseline in Pyro)
 6. [Learn Normalizing Flow for Bayesian linear regression](notebooks/bayesian_linear_regression_bnn_wrapper.ipynb) (13 dimensions; [using BNN wrapper class](reparameterized/bnn_wrapper.py))
 5. [Learn full-rank Normal for Bayesian linear regression](notebooks/bayesian_linear_regression_full_rank.ipynb)
@@ -29,3 +30,4 @@ For native pytorch modules it is impossible to pass at once multiple sampled par
 RealNVP implementation is based on [code](https://jmtomczak.github.io/blog/3/3_flows.html) from Jakub Tomczak.
 Code for flows includes contributions by Bartosz Wójcik [*bartwojc(AT)gmail.com*] and Marcin Sendera [*marcin.sendera(AT)gmail.com*].
 
+The code for SVD projections is based on code from Marcin Sendera [*marcin.sendera(AT)gmail.com*].

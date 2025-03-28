@@ -43,9 +43,17 @@ def create_svd_sampler(
     svd_residuals: bool = False,
     **kwargs,
 ) -> Tuple[Callable, Dict[str, torch.Tensor], Dict[str, object]]:
+    assert len(parameter.shape) == 2, "Currently only 2D parameters are supported."
 
     u, s, vh = torch.linalg.svd(parameter, full_matrices=False)
-    r_sampler, variational_params, aux_objs = svd_create_inner_matrix_sampler(s, **kwargs)
+
+    u = u.clone().detach()
+    vh = vh.clone().detach()
+    s = s.clone().detach()
+
+    r_sampler, variational_params, aux_objs = svd_create_inner_matrix_sampler(
+        torch.diag(s), **kwargs
+    )
 
     aux_objs["u"] = u
     aux_objs["vh"] = vh
@@ -53,12 +61,18 @@ def create_svd_sampler(
 
     def sampler(n_samples=1, u=u, vh=vh, s=s, svd_residuals=svd_residuals):
         r_samples, nlls = r_sampler(n_samples)
-        assert len(r_samples.shape) == 3
+        assert (
+            len(r_samples.shape) == 3
+        ), f"Wrong shape of the inner matrix samples: {r_samples.shape}"
         assert r_samples.shape[0] == n_samples
         assert r_samples.shape[1] == s.shape[0]
         assert r_samples.shape[2] == s.shape[0]
 
-        sample = svd_inv(r_samples, u, vh, svd_residuals, s)
+        sample = svd_inv(r_samples, u, vh, svd_residuals, s).transpose(1, 2)
+        assert sample.shape[0] == n_samples
+        assert (
+            sample.shape[1:] == parameter.shape
+        ), f"sample.shape={sample.shape} != parameter.shape={parameter.shape}"
 
         return sample, nlls
 

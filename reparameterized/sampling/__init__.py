@@ -3,6 +3,7 @@
 from .delta import *
 from .gaussian import *
 from .multiparameter import *
+from .multiparameter_factories import *
 from .flows import *
 from .bayesian_hypernets import *
 
@@ -16,3 +17,5 @@ except Exception as e:
     logging.warning(f"Failed to import NormFlows: {e}")
     
 from . import realnvp
+
+from .svd import *

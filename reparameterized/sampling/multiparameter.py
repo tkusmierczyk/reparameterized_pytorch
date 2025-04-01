@@ -66,6 +66,8 @@ def create_multiparameter_sampler(
             spline_flow_hidden_units=16,  # some additional parameters to be passed to the building function
         )
     """
+    if hasattr(named_parameters, "items"):  # handle dictionaries
+        named_parameters = named_parameters.items()
     named_parameters = list(named_parameters)
 
     # flatten to a single vector:
@@ -111,7 +113,10 @@ def create_multiparameter_sampler_dict(
         )
 
     """
-    named_parameters = list(named_parameters.items())
+    if hasattr(named_parameters, "items"):
+        named_parameters = named_parameters.items()
+    named_parameters = list(named_parameters)
+
     parameter_names = [n for n, _ in named_parameters]  # extract parameter names
     sampler, variational_params, aux_objs = create_multiparameter_sampler(
         sampler_create_func, named_parameters, **sampler_create_func_args

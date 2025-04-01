@@ -4,9 +4,11 @@ import math
 
 import torch
 from torch.nn.functional import softplus
-from torch.distributions import Normal, MultivariateNormal
+from torch.distributions import Normal, MultivariateNormal, LowRankMultivariateNormal
 
 from typing import Tuple, Callable, Dict
+
+import logging
 
 
 def create_factorized_gaussian_sampler(
@@ -156,3 +158,93 @@ def create_full_rank_gaussian_sampler(
         n: p for n, p in variational_params.items() if p.requires_grad
     }  # exclude no-grad params
     return sample_gaussian, variational_params, {}
+
+
+def create_gaussian_lowrank_sampler(
+    parameter: torch.Tensor,
+    device=None,
+    loc_initialization: Callable = lambda parameter: parameter.flatten()
+    .clone()
+    .detach(),
+    cov_diag_initialization: Callable = lambda parameter: torch.ones_like(
+        parameter.flatten()
+    )
+    * 0.01,
+    cov_factor_initialization: Callable = lambda parameter: 0.01
+    * torch.randn(
+        torch.Size(
+            [parameter.flatten().shape[0], min(10, parameter.flatten().shape[0])]
+        )
+    ),
+    rank: int = 5,
+    **ignored_params,
+) -> Tuple[Callable, Dict[str, torch.Tensor], Dict[str, object]]:
+    """Creates a function that samples from LowRankMultivariateNormal(loc, cov).
+
+    The covariance matrix is represented in low-rank form as:
+    cov = cov_factor @ cov_factor.T + cov_diag
+
+    This is more efficient than full-rank for high-dimensional parameters.
+
+    Args:
+        parameter: The parameter tensor to be sampled
+        device: Device to place tensors on
+        loc_initialization: Function to initialize the mean vector
+        cov_diag_initialization: Function to initialize the diagonal covariance
+        cov_factor_initialization: Function to initialize the low-rank factor
+        rank: The rank of the low-rank component (default: 5)
+
+    Returns:
+        sampling function: which takes n_samples and outputs tuple(sample, NLL)
+        dictionary {name: tensor} with variational parameters (loc, cov parameters)
+        dictionary with auxiliary objects (currently empty)
+    """
+    device = device or parameter.device
+    param_size = parameter.flatten().shape[0]
+
+    # Ensure rank is not larger than parameter size
+    actual_rank = min(rank, param_size)
+    if actual_rank != rank:
+        logging.warning(
+            f"[create_gaussian_lowrank_sampler] actual_rank={actual_rank} != requested_rank={rank}!"
+        )
+
+    loc = loc_initialization(parameter)
+    cov_diag = cov_diag_initialization(parameter)
+    cov_factor = cov_factor_initialization(parameter)
+
+    # Ensure cov_factor has correct shape
+    if cov_factor.shape[1] != actual_rank:
+        cov_factor = 0.01 * torch.randn(
+            torch.Size([param_size, actual_rank]), device=device
+        )
+
+    loc = loc.to(device).requires_grad_(True)
+    cov_diag = cov_diag.to(device).requires_grad_(True)
+    cov_factor = cov_factor.to(device).requires_grad_(True)
+
+    def sample_gaussian_lowrank(n_samples=1):
+        # Ensure diagonal covariance is positive
+        positive_diag = softplus(cov_diag) + 1e-8
+
+        # Create distribution
+        q = LowRankMultivariateNormal(
+            loc=loc, cov_factor=cov_factor, cov_diag=positive_diag
+        )
+        sample = q.rsample(torch.Size([n_samples]))
+
+        # Calculate total NLL for all params (shape==n_samples)
+        nll = -q.log_prob(sample)
+        nll = nll.to(sample.device)
+
+        # Reshape sample to match original parameter shape
+        sample = sample.reshape(torch.Size([n_samples]) + parameter.shape)
+        return sample, nll
+
+    variational_params = {
+        "loc": loc,
+        "cov_diag": cov_diag,
+        "cov_factor": cov_factor,
+    }
+
+    return sample_gaussian_lowrank, variational_params, {}

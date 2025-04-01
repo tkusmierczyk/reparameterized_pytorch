@@ -71,6 +71,66 @@ def _smart_reshape(tensor, desired_shape):
         )
 
 
+def load_partial_state_dict(
+    module,
+    state_dict: StateDict,
+    prev_state_dict: StateDict = {},
+    strict_shapes: bool = True,
+):
+    """Sets model params to samples from state_dict, optimized for sparse updates.
+
+    Args:
+        module: torch module instance
+        state_dict: dictionary {parameter_name/path: sample_value (tensor)}
+        strict_shapes: allow reshaping new values to match the originals (number of elements must match)
+
+    Returns:
+        tuple: (updated module, dictionary of previous values of updated parameters)
+    """
+    # Use PyTorch's named parameters with the parameter names as keys in our map
+    params_dict = dict(module.named_parameters())
+
+    # Get the parameters from the module that match keys in state_dict
+    for param_path, new_value in state_dict.items():
+        if param_path not in params_dict:
+            logging.warning(
+                f"[load_partial_state_dict] Parameter {param_path} not found in module."
+            )
+            continue
+
+        current_param = params_dict[param_path]
+        shape, new_shape = current_param.shape, new_value.shape
+
+        assert (strict_shapes and new_shape == shape) or (
+            not strict_shapes
+            and (
+                new_shape.numel() == shape.numel()
+                or _are_shapes_compatible(new_shape, shape)
+            )
+        ), (f"param_path={param_path} shape={new_shape} " f"current shape={shape}")
+
+        # Save the old value
+        prev_state_dict[param_path] = current_param
+
+        # Find the module and parameter name to update
+        module_path, param_name = (
+            param_path.rsplit(".", 1) if "." in param_path else ("", param_path)
+        )
+
+        # Navigate to the correct module
+        parent_module = module
+        if module_path:
+            for name in module_path.split("."):
+                parent_module = parent_module._modules[name]
+
+        # Update the parameter
+        parent_module._parameters[param_name] = (
+            new_value if new_shape == shape else _smart_reshape(new_value, shape)
+        )
+
+    return module
+
+
 def load_state_dict(
     module,
     state_dict: StateDict,
@@ -86,6 +146,17 @@ def load_state_dict(
         prev_state_dict: output dictionary containing previous values of the updated parameters
         strict_shapes: allow reshaping new values to match the originals (number of elements must match)
     """
+    if len(state_dict) < 0.25 * len(list(module.parameters())):
+        logging.debug(
+            "[load_state_dict] switching to implmentation optimized for partial updates."
+        )
+        return load_partial_state_dict(
+            module,
+            state_dict,
+            prev_state_dict=prev_state_dict,
+            strict_shapes=strict_shapes,
+        )
+
     for name, m in module._modules.items():
         load_state_dict(
             m,
@@ -167,7 +238,9 @@ def parameter_samplers_to_joint_sampler(parameters2sampler: Samplers):
         samples, parameter2nlls = sample_parameters(
             parameters2sampler, n_samples, **kwargs
         )  # sample for each parameter independently
-        nlls = torch.stack(list(parameter2nlls.values()), dim=0).sum(dim=0)  # sum NLLs from all parameters
+        nlls = torch.stack(list(parameter2nlls.values()), dim=0).sum(
+            dim=0
+        )  # sum NLLs from all parameters
         return samples, nlls
 
     return single_sampler

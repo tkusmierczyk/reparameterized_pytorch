@@ -41,28 +41,60 @@ from .__init__ import *
 from .realnvp import build_realnvp
 
 
-def create_joint_sampler(parameters: Dict[str, torch.Tensor], architecture: str):
+def create_joint_sampler(
+    parameters: Dict[str, torch.Tensor], architecture: str, **kwargs
+):
     """Create a joint sampler for multiple parameters."""
-    
+
     if "svd" in architecture and "rnvp" in architecture:
         sampler, variational_params, aux_objs = create_multiparameter_svd_sampler(
             create_flow_sampler,
             parameters,
-            svd_residuals=("residuals" in architecture),
+            svd_residuals=kwargs.pop("svd_residuals", ("residuals" in architecture)),
             build_flow_func=build_realnvp,
-            realnvp_rezero_trick=("rezero" in architecture),
-            realnvp_num_layers=(8 if "small" in architecture else 32),
-            realnvp_m=(128 if "small" in architecture else 6 * 128),
+            realnvp_rezero_trick=kwargs.pop(
+                "realnvp_rezero_trick", ("rezero" in architecture)
+            ),
+            realnvp_num_layers=kwargs.pop(
+                "realnvp_num_layers", (8 if "small" in architecture else 32)
+            ),
+            realnvp_m=kwargs.pop(
+                "realnvp_m", (128 if "small" in architecture else 6 * 128)
+            ),
+            **kwargs,
         )
-        
+
+    elif "svd" in architecture and "factorized_gaussian" in architecture:
+        sampler, variational_params, aux_objs = create_multiparameter_svd_sampler(
+            create_factorized_gaussian_sampler,
+            parameters,
+            svd_residuals=kwargs.pop("svd_residuals", ("residuals" in architecture)),
+            **kwargs,
+        )
+
+    elif "svd" in architecture and "gaussian_lowrank" in architecture:
+        sampler, variational_params, aux_objs = create_multiparameter_svd_sampler(
+            create_gaussian_lowrank_sampler,
+            parameters,
+            svd_residuals=kwargs.pop("svd_residuals", ("residuals" in architecture)),
+            **kwargs,
+        )
+
     elif "rnvp" in architecture:
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
             create_flow_sampler,
             parameters,
             build_flow_func=build_realnvp,
-            realnvp_rezero_trick=("rezero" in architecture),
-            realnvp_num_layers=(8 if "small" in architecture else 32),
-            realnvp_m=(128 if "small" in architecture else 6 * 128),
+            realnvp_rezero_trick=kwargs.pop(
+                "realnvp_rezero_trick", ("rezero" in architecture)
+            ),
+            realnvp_num_layers=kwargs.pop(
+                "realnvp_num_layers", (8 if "small" in architecture else 32)
+            ),
+            realnvp_m=kwargs.pop(
+                "realnvp_m", (128 if "small" in architecture else 6 * 128)
+            ),
+            **kwargs,
         )
 
     elif architecture == "factorized_gaussian_rezero":
@@ -76,18 +108,17 @@ def create_joint_sampler(parameters: Dict[str, torch.Tensor], architecture: str)
                 parameter_init_value
             )
             * -3.0,
+            **kwargs,
         )
 
     elif architecture == "factorized_gaussian":
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
-            create_factorized_gaussian_sampler,
-            parameters,
+            create_factorized_gaussian_sampler, parameters, **kwargs
         )
 
     elif architecture == "gaussian_tril":
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
-            create_gaussian_tril_sampler,
-            parameters,
+            create_gaussian_tril_sampler, parameters, **kwargs
         )
 
     elif architecture == "gaussian_tril_rezero":
@@ -99,8 +130,20 @@ def create_joint_sampler(parameters: Dict[str, torch.Tensor], architecture: str)
 
     elif architecture == "gaussian_full":
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
-            create_full_rank_gaussian_sampler,
+            create_full_rank_gaussian_sampler, parameters, **kwargs
+        )
+
+    elif architecture == "gaussian_lowrank":
+        sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
+            create_gaussian_lowrank_sampler, parameters, **kwargs
+        )
+
+    elif architecture == "gaussian_lowrank_rezero":
+        sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
+            create_gaussian_lowrank_sampler,
             parameters,
+            loc_initialization=lambda p: (0.0 * p.flatten().clone().detach()),
+            **kwargs,
         )
 
     elif architecture == "gaussian_full_rezero":
@@ -108,6 +151,7 @@ def create_joint_sampler(parameters: Dict[str, torch.Tensor], architecture: str)
             create_full_rank_gaussian_sampler,
             parameters,
             loc_initialization=lambda p: (0.0 * p.flatten().clone().detach()),
+            **kwargs,
         )
 
     else:
@@ -118,7 +162,7 @@ def create_joint_sampler(parameters: Dict[str, torch.Tensor], architecture: str)
     return sampler, variational_params, aux_objs
 
 
-def create_parameter_sampler(parameter, architecture):
+def create_parameter_sampler(parameter, architecture, **create_func_kwargs):
 
     if "svd" in architecture and "rnvp" in architecture:
         sampler, variational_params, aux_objs = create_svd_sampler(
@@ -129,6 +173,7 @@ def create_parameter_sampler(parameter, architecture):
             realnvp_rezero_trick=("rezero" in architecture),
             realnvp_num_layers=(8 if "small" in architecture else 32),
             realnvp_m=(128 if "small" in architecture else 6 * 128),
+            **create_func_kwargs,
         )
 
     elif "rnvp" in architecture:
@@ -138,6 +183,7 @@ def create_parameter_sampler(parameter, architecture):
             realnvp_rezero_trick=("rezero" in architecture),
             realnvp_num_layers=(8 if "small" in architecture else 32),
             realnvp_m=(128 if "small" in architecture else 6 * 128),
+            **create_func_kwargs,
         )
 
     elif "svd" in architecture and "factorized_gaussian" in architecture:
@@ -152,6 +198,19 @@ def create_parameter_sampler(parameter, architecture):
                 parameter_init_value
             )
             * -3.0,
+            **create_func_kwargs,
+        )
+
+    elif (
+        "svd" in architecture
+        and "gaussian" in architecture
+        and "lowrank" in architecture
+    ):
+        sampler, variational_params, aux_objs = create_svd_sampler(
+            parameter,
+            create_gaussian_lowrank_sampler,
+            svd_residuals=("residuals" in architecture),
+            **create_func_kwargs,
         )
 
     elif architecture == "factorized_gaussian_rezero":
@@ -164,33 +223,49 @@ def create_parameter_sampler(parameter, architecture):
                 parameter_init_value
             )
             * -3.0,
+            **create_func_kwargs,
         )
 
     elif architecture == "factorized_gaussian":
         sampler, variational_params, aux_objs = create_factorized_gaussian_sampler(
-            parameter,
+            parameter, **create_func_kwargs
         )
 
     elif architecture == "gaussian_tril":
         sampler, variational_params, aux_objs = create_gaussian_tril_sampler(
-            parameter,
+            parameter, **create_func_kwargs
         )
 
     elif architecture == "gaussian_tril_rezero":
         sampler, variational_params, aux_objs = create_gaussian_tril_sampler(
             parameter,
             loc_initialization=lambda p: (0.0 * p.flatten().clone().detach()),
+            **create_func_kwargs,
         )
 
     elif architecture == "gaussian_full":
         sampler, variational_params, aux_objs = create_full_rank_gaussian_sampler(
             parameter,
+            **create_func_kwargs,
         )
 
     elif architecture == "gaussian_full_rezero":
         sampler, variational_params, aux_objs = create_full_rank_gaussian_sampler(
             parameter,
             loc_initialization=lambda p: (0.0 * p.flatten().clone().detach()),
+            **create_func_kwargs,
+        )
+
+    elif architecture == "gaussian_lowrank":
+        sampler, variational_params, aux_objs = create_gaussian_lowrank_sampler(
+            parameter, **create_func_kwargs
+        )
+
+    elif architecture == "gaussian_lowrank_rezero":
+        sampler, variational_params, aux_objs = create_gaussian_lowrank_sampler(
+            parameter,
+            loc_initialization=lambda p: (0.0 * p.flatten().clone().detach()),
+            **create_func_kwargs,
         )
 
     else:
@@ -201,15 +276,19 @@ def create_parameter_sampler(parameter, architecture):
     return sampler, variational_params, aux_objs
 
 
-def create_independent_samplers(parameters: Dict[str, torch.Tensor], architecture: str):
+def create_independent_samplers(
+    parameters: Dict[str, torch.Tensor], architecture: str, **create_func_kwargs
+):
     """Create (independent) samplers for each parameter in the dictionary {parameter name: parameter tensor}."""
 
     parameter2sampler, variational_params, aux_objs = {}, {}, {}
     for name, parameter in parameters.items():
         sampler1, variational_params1, aux_objs1 = create_parameter_sampler(
-            parameter, architecture
+            parameter,
+            architecture,
+            **create_func_kwargs,
         )
-        aux_objs1 = {name+"."+k: v for k, v in aux_objs1.items()}
+        aux_objs1 = {name + "." + k: v for k, v in aux_objs1.items()}
 
         parameter2sampler[name] = sampler1
         for k, v in variational_params1.items():

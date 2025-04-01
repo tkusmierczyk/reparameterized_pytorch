@@ -3,6 +3,8 @@ from torch import nn
 from torch.nn import Sequential, Linear, LeakyReLU, Tanh
 from torch.distributions import MultivariateNormal
 
+import logging
+
 
 class RealNVP(nn.Module):
     """Based on implementation by Jakub Tomczak
@@ -13,7 +15,7 @@ class RealNVP(nn.Module):
         super().__init__()
         self.register_buffer("prior_loc", torch.zeros(dim))
         self.register_buffer("prior_cov", torch.eye(dim))
-        
+
         self.t = nn.ModuleList([net_t() for _ in range(num_layers)])
         self.s = nn.ModuleList([net_s() for _ in range(num_layers)])
         self.num_flows = num_layers
@@ -27,7 +29,7 @@ class RealNVP(nn.Module):
             if rezero_trick
             else torch.ones((len(self.t)))
         )
-        
+
     @property
     def prior(self):
         return MultivariateNormal(self.prior_loc, self.prior_cov)
@@ -81,6 +83,12 @@ def build_realnvp(
     realnvp_activation=LeakyReLU(),
     **ignored_kwargs,
 ):
+    logging.info(
+        f"[build_realnvp] output_dim={output_dim} realnvp_m={realnvp_m} "
+        f"realnvp_num_layers={realnvp_num_layers} realnvp_rezero_trick={realnvp_rezero_trick} "
+        f"realnvp_activation={realnvp_activation}"
+    )
+
     d = output_dim
     m = realnvp_m
 
@@ -99,6 +107,8 @@ def build_realnvp(
         realnvp_activation,
         Linear(m, d // 2),
     )
-    realnvp = RealNVP(net_s, net_t, realnvp_num_layers, d, rezero_trick=realnvp_rezero_trick)
-    
+    realnvp = RealNVP(
+        net_s, net_t, realnvp_num_layers, d, rezero_trick=realnvp_rezero_trick
+    )
+
     return realnvp

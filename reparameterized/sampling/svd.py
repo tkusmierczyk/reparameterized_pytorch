@@ -60,6 +60,11 @@ def create_svd_sampler(
     svd_residuals: bool = False,
     **create_sampler_kwargs,
 ) -> Tuple[Callable, Dict[str, torch.Tensor], Dict[str, object]]:
+    logging.info(
+        f"[create_svd_sampler] parameter={parameter.shape} "
+        f"svd_create_inner_matrix_sampler={svd_create_inner_matrix_sampler} svd_residuals={svd_residuals}"
+    )
+
     if len(parameter.shape) != 2:
         logging.warning(
             "[create_svd_sampler] "
@@ -107,6 +112,11 @@ def create_multiparameter_svd_sampler(
     if hasattr(named_parameters, "items"):
         named_parameters = named_parameters.items()
     named_parameters = list(named_parameters)
+
+    logging.info(
+        f"[create_multiparameter_svd_sampler] parameters={[n for n, _ in named_parameters]} "
+        f"svd_create_inner_matrix_sampler={svd_create_inner_matrix_sampler} svd_residuals={svd_residuals}"
+    )
 
     aux_objs = {}
     named_inner_parameters = []

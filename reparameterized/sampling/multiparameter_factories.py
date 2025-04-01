@@ -40,6 +40,8 @@ from typing import Dict
 from .__init__ import *
 from .realnvp import build_realnvp
 
+import logging
+
 
 def create_joint_sampler(
     parameters: Dict[str, torch.Tensor], architecture: str, **kwargs
@@ -47,6 +49,9 @@ def create_joint_sampler(
     """Create a joint sampler for multiple parameters."""
 
     if "svd" in architecture and "rnvp" in architecture:
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_svd_sampler + create_flow_sampler"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_svd_sampler(
             create_flow_sampler,
             parameters,
@@ -65,6 +70,9 @@ def create_joint_sampler(
         )
 
     elif "svd" in architecture and "factorized_gaussian" in architecture:
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_svd_sampler + create_factorized_gaussian_sampler"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_svd_sampler(
             create_factorized_gaussian_sampler,
             parameters,
@@ -73,6 +81,9 @@ def create_joint_sampler(
         )
 
     elif "svd" in architecture and "gaussian_lowrank" in architecture:
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_svd_sampler + create_gaussian_lowrank_sampler"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_svd_sampler(
             create_gaussian_lowrank_sampler,
             parameters,
@@ -81,6 +92,9 @@ def create_joint_sampler(
         )
 
     elif "rnvp" in architecture:
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_flow_sampler"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
             create_flow_sampler,
             parameters,
@@ -97,7 +111,18 @@ def create_joint_sampler(
             **kwargs,
         )
 
+    elif architecture == "factorized_gaussian":
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_factorized_gaussian_sampler"
+        )
+        sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
+            create_factorized_gaussian_sampler, parameters, **kwargs
+        )
+
     elif architecture == "factorized_gaussian_rezero":
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_factorized_gaussian_sampler"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
             create_factorized_gaussian_sampler,
             parameters,
@@ -111,17 +136,18 @@ def create_joint_sampler(
             **kwargs,
         )
 
-    elif architecture == "factorized_gaussian":
-        sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
-            create_factorized_gaussian_sampler, parameters, **kwargs
-        )
-
     elif architecture == "gaussian_tril":
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_gaussian_tril_sampler"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
             create_gaussian_tril_sampler, parameters, **kwargs
         )
 
     elif architecture == "gaussian_tril_rezero":
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_gaussian_tril_sampler + rezero"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
             create_gaussian_tril_sampler,
             parameters,
@@ -129,26 +155,38 @@ def create_joint_sampler(
         )
 
     elif architecture == "gaussian_full":
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_full_rank_gaussian_sampler"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
             create_full_rank_gaussian_sampler, parameters, **kwargs
         )
 
-    elif architecture == "gaussian_lowrank":
-        sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
-            create_gaussian_lowrank_sampler, parameters, **kwargs
+    elif architecture == "gaussian_full_rezero":
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_full_rank_gaussian_sampler + rezero"
         )
-
-    elif architecture == "gaussian_lowrank_rezero":
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
-            create_gaussian_lowrank_sampler,
+            create_full_rank_gaussian_sampler,
             parameters,
             loc_initialization=lambda p: (0.0 * p.flatten().clone().detach()),
             **kwargs,
         )
 
-    elif architecture == "gaussian_full_rezero":
+    elif architecture == "gaussian_lowrank":
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_gaussian_lowrank_sampler"
+        )
         sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
-            create_full_rank_gaussian_sampler,
+            create_gaussian_lowrank_sampler, parameters, **kwargs
+        )
+
+    elif architecture == "gaussian_lowrank_rezero":
+        logging.info(
+            "[create_joint_sampler] create_multiparameter_sampler_dict + create_gaussian_lowrank_sampler + rezero"
+        )
+        sampler, variational_params, aux_objs = create_multiparameter_sampler_dict(
+            create_gaussian_lowrank_sampler,
             parameters,
             loc_initialization=lambda p: (0.0 * p.flatten().clone().detach()),
             **kwargs,

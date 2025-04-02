@@ -39,6 +39,7 @@ from typing import Dict
 
 from .__init__ import *
 from .realnvp import build_realnvp
+from ..parameters import parameter_samplers_to_joint_sampler
 
 import logging
 
@@ -334,3 +335,42 @@ def create_independent_samplers(
         aux_objs.update(aux_objs1)
 
     return parameter2sampler, variational_params, aux_objs
+
+
+def create_sampler(
+    parameters: Dict[str, torch.Tensor], architecture: str, **create_func_kwargs
+):
+    """Creates a sampler for the provided parameters based on architecture type.
+
+    This function either creates a joint sampler for all parameters or individual
+    samplers for each parameter, depending on the specified architecture.
+
+    Args:
+        parameters (Dict[str, torch.Tensor]): A dictionary where keys are parameter
+            names and values are their corresponding parameter tensors.
+        architecture (str): A string specifying the architecture type. If the string
+            contains "joint", a joint sampler is created; otherwise, independent
+            samplers are created.
+        **create_func_kwargs: Additional arguments passed to the sampler
+            creation functions.
+
+    Returns a tuple containing:
+            - sampler: The created sampler, either joint or derived from individual samplers.
+            - variational_params: Variational parameters associated with the sampler.
+            - aux_objs: Auxiliary objects created during the sampler setup.
+    """
+    if "joint" in architecture:
+        logging.info(
+            "[create_sampler] All parameters are put together and use a joint sampler"
+        )
+        sampler, variational_params, aux_objs = create_joint_sampler(
+            parameters, architecture
+        )
+    else:
+        logging.info("[create_sampler] Each parameter gets its own sampler")
+        parameter2sampler, variational_params, aux_objs = create_independent_samplers(
+            parameters, architecture
+        )
+        sampler = parameter_samplers_to_joint_sampler(parameter2sampler)
+
+    return sampler, variational_params, aux_objs
